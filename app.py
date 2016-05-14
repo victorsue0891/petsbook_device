@@ -1,41 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Example Google style docstrings.
-
-This module demonstrates documentation as specified by the `Google Python
-Style Guide`_. Docstrings may extend over multiple lines. Sections are created
-with a section header and a colon followed by a block of indented text.
-
-Example:
-    Examples can be given using either the ``Example`` or ``Examples``
-    sections. Sections support any reStructuredText formatting, including
-    literal blocks::
-
-        $ python example_google.py
-
-Section breaks are created by resuming unindented text. Section breaks
-are also implicitly created anytime a new section starts.
-
-Attributes:
-    module_level_variable1 (int): Module level variables may be documented in
-        either the ``Attributes`` section of the module docstring, or in an
-        inline docstring immediately following the variable.
-
-        Either form is acceptable, but the two should not be mixed. Choose
-        one convention to document module level variables and be consistent
-        with it.
-
-TODO:
-    1. Add Kalman Filter and Moving Average to the rssi
-    2. Transmit values to backend (HTTP or WebSocket?)
-
-
-"""
 
 import serial
 import time
 import math
+import json
+import requests as r
 from kalman import Kalman
 
+URL = "https://cAUrbKXQ8qfg59UhwAMS8C4H2L4t5hbNlHdI0Qbu:javascript-key=seN49Lww6i0Wk6Am0hy4qwmfLWaBer9o0gfQXc5Q@api.parse.com/1/classes/Activity"
+PET_ID = '1E0822ACC5'
 kf = Kalman(R=0.01, Q=3)
 
 def get_range(rssi):
@@ -64,7 +37,9 @@ def calculateDistance(rssi):
 
 def setup():
     global s
-    s = serial.Serial("/dev/ttyS2", 9600)
+    global s2
+    s = serial.Serial("/dev/ttyS2", 9600, timeout=1)
+    s2 = serial.Serial("/dev/ttyS0", 9600)
     s.write("AT+ROLE1")
     time.sleep(1)
     s.write("AT+IMME1")
@@ -74,16 +49,37 @@ def setup():
 def loop():
     s.write("AT+DISI?")
     result = s.read(8)
+    weight = s2.readline()
     print result
+    print weight
     if result == "OK+DISC:":
         beacon = s.read(70)
         rssi = int(beacon.split(":")[-1])
+        pet_id = beacon.split(":")[2]
         # Measured 1m rssi is the last two bytes of p3
         #txPower = beacon.split(":")[-3][-2]
         print beacon
         print "RSSI is {}".format(int(rssi))
         distance = calculateDistance(rssi)
         distance2 = get_range(rssi)
+        if distance < 5 and pet_id == PET_ID:
+            print "posting to Parse"
+	    payload = {
+                   "weight": float(weight),
+                   "pet": {
+                           "__type": "Pointer",
+                           "className": "Pet",
+                           "objectId": pet_id 
+                   },
+                   "food": {
+                           "__type": "Pointer",
+                           "className": "Food",
+                           "objectId": "zU2FF9wWs9"
+                   }
+            }
+            print("posting {}".format(payload))
+            res = r.post(URL, data=json.dumps(payload))
+            print res.text
         print "Distance1 is {}".format(distance)
         print "Distance2 is {}".format(distance2)
 
