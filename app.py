@@ -8,7 +8,8 @@ import requests as r
 from kalman import Kalman
 
 URL = "https://cAUrbKXQ8qfg59UhwAMS8C4H2L4t5hbNlHdI0Qbu:javascript-key=seN49Lww6i0Wk6Am0hy4qwmfLWaBer9o0gfQXc5Q@api.parse.com/1/classes/Activity"
-PET_ID = '1E0822ACC5'
+#PET_ID = '1E0822ACC5'
+PET_ID = '1234FA01C5'
 kf = Kalman(R=0.01, Q=3)
 
 def get_range(rssi):
@@ -50,8 +51,13 @@ def loop():
     s.write("AT+DISI?")
     result = s.read(8)
     weight = s2.readline()
+    try:
+        weight = abs(float(weight))
+    except:
+        print("Invalid wright received")
     print result
     print weight
+
     if result == "OK+DISC:":
         beacon = s.read(70)
         rssi = int(beacon.split(":")[-1])
